@@ -1,0 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Distribution / packaging
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# Logs and runtime files
+*.log
+
+# Virtual environments
+venv/
+ENV/
+
+# Local data
+schwab_token.json
