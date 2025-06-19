@@ -1,9 +1,14 @@
 import numpy as np
 import pandas as pd
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+from sqlalchemy.orm import Session
 from scipy.stats import norm
 from .schwab_api import SchwabClient  # Add this import
+from db import SessionLocal, OptionChain, Base, engine
+
+# Ensure tables exist
+Base.metadata.create_all(bind=engine)
 
 # Initialize Schwab client (will be created when needed)
 _schwab_client = None
@@ -18,79 +23,42 @@ def get_chain_data(ticker: str) -> dict:
     except Exception as e:
         raise ValueError(f"Failed to fetch option chain data: {str(e)}")
 
-def get_latest_chain_file(ticker: str) -> str:
-    """
-    Get the path to the most recent chain data file for a given ticker.
-    
-    Args:
-        ticker: The stock symbol to find chain data for
-        
-    Returns:
-        str: Path to the most recent chain data file, or None if no file exists
-    """
-    import os
-    import glob
-    from datetime import datetime
-    
-    # Get the chain_data directory
-    chain_dir = os.path.join(os.path.dirname(__file__), "chain_data")
-    
-    # Find all JSON files for this ticker
-    pattern = os.path.join(chain_dir, f"{ticker}_*.json")
-    files = glob.glob(pattern)
-    
-    if not files:
-        return None
-        
-    # Sort by timestamp in filename (newest first)
-    files.sort(reverse=True)
-    return files[0]
+
+def save_chain_to_db(session: Session, symbol: str, fetched_at: datetime, raw_json: dict) -> None:
+    """Persist fetched chain data to the database."""
+    record = OptionChain(symbol=symbol, fetched_at=fetched_at, raw_json=json.dumps(raw_json))
+    session.add(record)
+    session.commit()
+
+
+def load_latest_chain(session: Session, symbol: str):
+    """Retrieve the most recently fetched chain for a symbol."""
+    return (
+        session.query(OptionChain)
+        .filter(OptionChain.symbol == symbol)
+        .order_by(OptionChain.fetched_at.desc())
+        .first()
+    )
+
+
+def fetch_and_save_chain(ticker: str, force_refresh: bool = False) -> dict:
+    """Fetch option chain data and cache it in the database."""
+    with SessionLocal() as session:
+        row = load_latest_chain(session, ticker)
+        if row and not force_refresh:
+            age = datetime.utcnow() - row.fetched_at
+            if age <= timedelta(minutes=30):
+                return json.loads(row.raw_json)
+
+        data = get_chain_data(ticker)
+        save_chain_to_db(session, ticker, datetime.utcnow(), data)
+        return data
 
 def load_chain_data(ticker: str) -> dict:
-    """
-    Load the most recent chain data for a ticker, fetching new data if needed.
-    
-    Args:
-        ticker: The stock symbol to load chain data for
-        
-    Returns:
-        dict: The chain data
-    """
-    import json
-    import os
-    from datetime import datetime
-    
+    """Load cached chain data, fetching from the API when stale."""
     print(f"\n=== Loading Chain Data for {ticker} ===")
-    
-    # Try to get the most recent file
-    latest_file = get_latest_chain_file(ticker)
-    
-    if latest_file:
-        print(f"Found existing file: {latest_file}")
-        # Get file timestamp from filename
-        filename = os.path.basename(latest_file)
-        date_str = filename.split('_')[1]  # Format: YYYYMMDD
-        file_date = datetime.strptime(date_str, "%Y%m%d").date()
-        
-        if file_date == datetime.now().date():
-            # File is from today, use it
-            print(f"Loading chain data from {latest_file}")
-            with open(latest_file, 'r') as f:
-                data = json.load(f)
-                print("Successfully loaded data:")
-                print(f"- Call expirations: {len(data.get('callExpDateMap', {}))}")
-                print(f"- Put expirations: {len(data.get('putExpDateMap', {}))}")
-                return data
-        else:
-            print(f"File is from {file_date}, fetching new data")
-    else:
-        print("No existing file found, fetching new data")
-    
-    # No recent file found, fetch new data
-    print(f"Fetching new chain data for {ticker}")
-    client = SchwabClient(clean_token=True)
-    data = client.fetch_and_save_chain(ticker)
-    print("Successfully fetched new data:")
+    data = fetch_and_save_chain(ticker)
+    print("Successfully loaded data:")
     print(f"- Call expirations: {len(data.get('callExpDateMap', {}))}")
     print(f"- Put expirations: {len(data.get('putExpDateMap', {}))}")
     return data
