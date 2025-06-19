@@ -273,6 +273,42 @@ def serve_layout():
                     "textAlign": "center",
                     "fontWeight": "bold"
                 }
+            ),
+
+            # Floating notes toggle button
+            html.Button(
+                "📝",
+                id="notes-toggle",
+                style={
+                    "position": "fixed",
+                    "top": "10px",
+                    "right": "10px",
+                    "zIndex": 1000,
+                },
+            ),
+
+            # Hidden notes sidebar
+            html.Div(
+                [
+                    dcc.Tabs(id="notes-tabs", children=[], persistence=True),
+                    dcc.Textarea(
+                        id="notes-editor",
+                        style={"width": "100%", "height": "80vh"},
+                    ),
+                ],
+                id="notes-sidebar",
+                style={
+                    "position": "fixed",
+                    "right": 0,
+                    "top": 0,
+                    "width": "320px",
+                    "height": "100vh",
+                    "transform": "translateX(100%)",
+                    "transition": "transform 0.3s",
+                    "backgroundColor": DARK_THEME["secondary-background"],
+                    "padding": "10px",
+                    "zIndex": 999,
+                },
             )
         ],
         style={
