@@ -68,16 +68,18 @@ CALLBACK_URL = "https://127.0.0.1:8182"  # Must use HTTPS for Schwab
 
 class SchwabClient:
     """Client for interacting with Schwab's API with improved error handling."""
-    
-    def __init__(self, clean_token: bool = True):
+
+    def __init__(self, clean_token: bool = False):
         """
         Initialize the Schwab API client with improved error handling.
         
         Args:
-            clean_token: If True, removes any existing token file before authenticating (default: True)
+            clean_token: If True, removes any existing token file before
+                authenticating. Defaults to ``False`` so the cached token is
+                reused.
         """
         try:
-            # Always clean the token to avoid auth issues
+            # Only delete the token file when explicitly requested
             if clean_token and os.path.exists("schwab_token.json"):
                 os.remove("schwab_token.json")
                 logger.info("Removed existing token file")
@@ -87,7 +89,8 @@ class SchwabClient:
                 api_key=CLIENT_ID,
                 app_secret=CLIENT_SECRET,
                 callback_url=CALLBACK_URL,
-                token_path="schwab_token.json"
+                token_path="schwab_token.json",  # caches token
+                refresh=True                      # auto refreshes
             )
             logger.info("Successfully created Schwab client")
             
