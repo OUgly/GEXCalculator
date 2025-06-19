@@ -61,23 +61,24 @@ def retry_with_backoff(retries=MAX_RETRIES, delay=RETRY_DELAY):
         return wrapper
     return decorator
 
-# Constants - Using simpler approach that works
-CLIENT_ID = "9iY4fkoLKGMUoRgdWJgzM6bZuRMTwi84"
-CLIENT_SECRET = "V0xhZ86bdXAXyiAI"
-CALLBACK_URL = "https://127.0.0.1:8182"  # Must use HTTPS for Schwab
 
 class SchwabClient:
     """Client for interacting with Schwab's API with improved error handling."""
-    
-    def __init__(self, clean_token: bool = True):
+
+    def __init__(self, clean_token: bool = False):
         """
         Initialize the Schwab API client with improved error handling.
-        
+
         Args:
-            clean_token: If True, removes any existing token file before authenticating (default: True)
+            clean_token: If ``True``, delete any existing token file before
+                authenticating. Defaults to ``False`` so the cached token is
+                reused.
+
+        The token will be stored in ``schwab_token.json`` and automatically
+        refreshed by ``schwab-py``.
         """
         try:
-            # Always clean the token to avoid auth issues
+            # Only delete the token file when explicitly requested
             if clean_token and os.path.exists("schwab_token.json"):
                 os.remove("schwab_token.json")
                 logger.info("Removed existing token file")
@@ -87,7 +88,7 @@ class SchwabClient:
                 api_key=CLIENT_ID,
                 app_secret=CLIENT_SECRET,
                 callback_url=CALLBACK_URL,
-                token_path="schwab_token.json"
+                token_path="schwab_token.json"  # caches token and enables refresh
             )
             logger.info("Successfully created Schwab client")
             
@@ -233,5 +234,5 @@ class SchwabClient:
 # For backwards compatibility
 def fetch_option_chain(symbol: str) -> Dict[str, Any]:
     """Legacy function for backwards compatibility."""
-    client = SchwabClient(clean_token=True)  # Always clean token for legacy function
-    return client.fetch_and_save_chain(symbol)  # Use new method that saves JSON
+    client = SchwabClient()
+    return client.fetch_and_save_chain(symbol)
