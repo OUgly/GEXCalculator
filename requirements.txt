@@ -1,5 +1,7 @@
-authlib>=1.2.1
+authlib>=1.4.0
 httpx>=0.24.1
 pandas>=2.0.0
 plotly>=5.15.0
 dash>=2.11.0
+certifi>=2025.0.0
+schwab-py>=0.10.0
