@@ -235,11 +235,12 @@ def register_callbacks(app):
 
     @app.callback(
         [Output("notes-tabs", "children"), Output("notes-tabs", "value")],
-        Input("symbol-dropdown", "value"),
+        Input("gex-store", "data"),
         State("notes-tabs", "children"),
         prevent_initial_call=True,
     )
-    def ensure_notes_tab(symbol, children):
+    def ensure_notes_tab(gex_data, children):
+        symbol = (gex_data or {}).get("ticker") if isinstance(gex_data, dict) else None
         if not symbol:
             return no_update, no_update
         children = children or []
