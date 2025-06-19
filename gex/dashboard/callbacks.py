@@ -11,7 +11,7 @@ from dash import dcc, html, Input, Output, State, no_update, callback_context
 from ..gex_backend import run_gex_analysis, load_chain_data
 from .layout import DARK_THEME
 from db import SessionLocal
-from ..notes import get_or_create_note, update_note
+from ..notes import get_or_create_note, update_note, list_symbols
 
 
 def register_callbacks(app):
@@ -102,6 +102,20 @@ def register_callbacks(app):
     def update_expiry_options(data):
         """Populate the expiry dropdown after data has been processed."""
         return data.get("expiries", []) if data else []
+
+    @app.callback(
+        Output("symbol-dropdown", "options"),
+        [Input("gex-store", "data"), Input("ui-store", "data")],
+        prevent_initial_call=False,
+    )
+    def update_symbol_options(data, _):
+        """Populate the notes symbol dropdown based on saved notes and current data."""
+        symbols = set()
+        with SessionLocal() as session:
+            symbols.update(list_symbols(session))
+        if data and data.get("ticker"):
+            symbols.add(data["ticker"])
+        return [{"label": s, "value": s} for s in sorted(symbols)]
 
     @app.callback(
         Output('tab-content', 'children'),

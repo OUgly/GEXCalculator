@@ -28,3 +28,8 @@ def update_note(session: Session, symbol: str, content: str) -> None:
         note.updated_at = datetime.utcnow()
     session.commit()
 
+
+def list_symbols(session: Session) -> list[str]:
+    """Return all symbols that have notes saved."""
+    return [row[0] for row in session.query(Note.symbol).all()]
+
