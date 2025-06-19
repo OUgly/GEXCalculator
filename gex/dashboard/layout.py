@@ -290,6 +290,12 @@ def serve_layout():
             # Hidden notes sidebar
             html.Div(
                 [
+                    dcc.Dropdown(
+                        id="symbol-dropdown",
+                        placeholder="Select Symbol",
+                        options=[],
+                        style={"marginBottom": "10px", "width": "100%"},
+                    ),
                     dcc.Tabs(id="notes-tabs", children=[], persistence=True),
                     dcc.Textarea(
                         id="notes-editor",
