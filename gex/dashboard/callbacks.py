@@ -10,6 +10,8 @@ from dash import dcc, html, Input, Output, State, no_update, callback_context
 
 from ..gex_backend import run_gex_analysis, load_chain_data
 from .layout import DARK_THEME
+from db import SessionLocal
+from ..notes import get_or_create_note, update_note
 
 
 def register_callbacks(app):
@@ -204,3 +206,58 @@ def register_callbacks(app):
             return dcc.Graph(figure=fig_oi, style={"backgroundColor": DARK_THEME['background']})
 
         return "Unsupported tab selected"
+
+    @app.callback(
+        Output("notes-sidebar", "style"),
+        Input("notes-toggle", "n_clicks"),
+        State("notes-sidebar", "style"),
+        prevent_initial_call=True,
+    )
+    def toggle_notes(n_clicks, style):
+        style = style or {}
+        current = style.get("transform", "translateX(100%)")
+        style["transform"] = "translateX(0)" if current != "translateX(0)" else "translateX(100%)"
+        return style
+
+    @app.callback(
+        [Output("notes-tabs", "children"), Output("notes-tabs", "value")],
+        Input("symbol-dropdown", "value"),
+        State("notes-tabs", "children"),
+        prevent_initial_call=True,
+    )
+    def ensure_notes_tab(symbol, children):
+        if not symbol:
+            return no_update, no_update
+        children = children or []
+        existing_values = [
+            (c.get("props", {}).get("value") if isinstance(c, dict) else getattr(c, "value", None))
+            for c in children
+        ]
+        if symbol not in existing_values:
+            children.append(dcc.Tab(label=symbol, value=symbol))
+        return children, symbol
+
+    @app.callback(
+        Output("ui-store", "data"),
+        Input("notes-editor", "value"),
+        State("notes-tabs", "value"),
+        prevent_initial_call=True,
+    )
+    def save_note(content, symbol):
+        if not symbol:
+            return no_update
+        with SessionLocal() as session:
+            update_note(session, symbol, content or "")
+        return no_update
+
+    @app.callback(
+        Output("notes-editor", "value"),
+        Input("notes-tabs", "value"),
+        prevent_initial_call=True,
+    )
+    def load_note(symbol):
+        if not symbol:
+            return ""
+        with SessionLocal() as session:
+            note = get_or_create_note(session, symbol)
+            return note.content
