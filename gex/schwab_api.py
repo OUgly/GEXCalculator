@@ -88,7 +88,8 @@ class SchwabClient:
                 api_key=CLIENT_ID,
                 app_secret=CLIENT_SECRET,
                 callback_url=CALLBACK_URL,
-                token_path="schwab_token.json"  # caches token and enables refresh
+                token_path="schwab_token.json",  # caches token
+                refresh=True  # auto-refreshes cached token
             )
             logger.info("Successfully created Schwab client")
             
