@@ -13,7 +13,7 @@ def get_chain_data(ticker: str) -> dict:
     global _schwab_client
     try:
         if _schwab_client is None:
-            _schwab_client = SchwabClient(clean_token=True)
+            _schwab_client = SchwabClient()  # keep token so we don't log in every time
         return _schwab_client.fetch_option_chain(ticker)
     except Exception as e:
         raise ValueError(f"Failed to fetch option chain data: {str(e)}")
