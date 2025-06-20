@@ -253,7 +253,7 @@ def register_callbacks(app):
         return children, symbol
 
     @app.callback(
-        Output("ui-store", "data"),
+        Output("ui-store", "data", allow_duplicate=True),
         Input("notes-editor", "value"),
         State("notes-tabs", "value"),
         prevent_initial_call=True,
