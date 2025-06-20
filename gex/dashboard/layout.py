@@ -112,7 +112,7 @@ def serve_layout():
             html.Div(
                 id="sidebar",
                 children=[
-                    html.Img(src="/assets/logo.png", style={"width": "150px", "marginBottom": "20px"}),
+                    html.Img(src="/assets/logo.png", style={"width": "225px", "marginBottom": "10px"}),
                     html.Button("Options Chain", id="nav-options", className="sidebar-btn"),
                     html.Button("GEX Overview", id="nav-overview", className="sidebar-btn"),
                     html.Button("Historical GEX", id="nav-historical", className="sidebar-btn"),
