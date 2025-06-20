@@ -45,14 +45,20 @@ INDEX_STRING = """
                 flex: 1;
                 padding: 20px;
             }
-            .nav-link {
+            .sidebar-btn {
                 color: #e0e0e0;
-                text-decoration: none;
+                background: none;
+                border: none;
                 display: block;
-                padding: 8px 0;
+                width: 100%;
+                text-align: left;
+                padding: 10px 15px;
+                margin-bottom: 10px;
+                border-radius: 5px;
+                cursor: pointer;
             }
-            .nav-link:hover {
-                color: #00D4FF;
+            .sidebar-btn.active {
+                background-color: #333333;
             }
             #menu-toggle {
                 display: none;
@@ -106,167 +112,136 @@ def serve_layout():
             html.Div(
                 id="sidebar",
                 children=[
-                    html.H2("GEX Dashboard", style={"color": DARK_THEME["accent"], "marginBottom": "30px"}),
-                    html.A("Options Chain", href="#controls", className="nav-link"),
-                    html.A("GEX Overview", href="#", className="nav-link", id="nav-overview"),
-                    html.A("Historical GEX", href="#", className="nav-link", id="nav-historical"),
-                    html.Button("Notes", id="notes-toggle", className="nav-link", style={"background": "none", "border": "none", "padding": "8px 0", "textAlign": "left", "cursor": "pointer"}),
+                    html.Img(src="/assets/logo.png", style={"width": "150px", "marginBottom": "20px"}),
+                    html.Button("Options Chain", id="nav-options", className="sidebar-btn"),
+                    html.Button("GEX Overview", id="nav-overview", className="sidebar-btn"),
+                    html.Button("Historical GEX", id="nav-historical", className="sidebar-btn"),
+                    html.Button("Notes", id="nav-notes", className="sidebar-btn"),
                 ],
             ),
             html.Div(
                 id="main",
                 children=[
-                    html.Div(
-                        children=[
-                            html.H1(
-                                "Gamma Exposure Dashboard",
-                                style={"color": DARK_THEME["text"], "fontSize": "28px", "fontWeight": "600", "marginBottom": "10px"},
-                            )
-                        ],
-                        style={
-                            "padding": "20px",
-                            "backgroundColor": DARK_THEME["secondary-background"],
-                            "borderRadius": "10px",
-                            "marginBottom": "20px",
-                            "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)",
-                        },
-                    ),
 
             # Controls section
             html.Div(
                 [
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    dcc.Upload(
-                                        id="upload-json",
-                                        children=html.Button(
-                                            "📁 Upload JSON",
-                                            style={
-                                                "backgroundColor": DARK_THEME["accent"],
-                                                "color": "white",
-                                                "border": "none",
-                                                "padding": "10px 20px",
-                                                "borderRadius": "5px",
-                                                "cursor": "pointer",
-                                                "fontSize": "14px",
-                                            },
-                                        ),
-                                        multiple=False,
-                                    ),
-                                    dcc.Input(
-                                        id="ticker-input",
-                                        type="text",
-                                        placeholder="Ticker (e.g. SOXL)",
-                                        style={
-                                            "padding": "8px 15px",
-                                            "borderRadius": "5px",
-                                            "border": f"1px solid {DARK_THEME['accent']}",
-                                            "backgroundColor": DARK_THEME["background"],
-                                            "color": DARK_THEME["text"],
-                                            "marginLeft": "10px",
-                                            "width": "120px",
-                                        },
-                                    ),
-                                    html.Button(
-                                        "🔄 Fetch Chain",
-                                        id="fetch-chain-button",
-                                        style={
-                                            "backgroundColor": DARK_THEME["accent"],
-                                            "color": "white",
-                                            "border": "none",
-                                            "padding": "10px 20px",
-                                            "borderRadius": "5px",
-                                            "cursor": "pointer",
-                                            "fontSize": "14px",
-                                            "marginLeft": "10px",
-                                        },
-                                    ),
-                                ],
-                                style={"display": "flex", "alignItems": "center"},
-                            ),
-                            html.Div(
-                                [
-                                    dcc.Dropdown(
-                                        id="expiry-filter",
-                                        placeholder="Select Week",
-                                        style={
-                                            "width": "180px",
-                                            "backgroundColor": DARK_THEME["background"],
-                                            "color": DARK_THEME["text"],
-                                        },
-                                    ),
-                                    dcc.Dropdown(
-                                        id="month-filter",
-                                        options=[
-                                            {"label": "All Months", "value": "ALL"},
-                                            {"label": "January", "value": "JAN"},
-                                            {"label": "February", "value": "FEB"},
-                                            {"label": "March", "value": "MAR"},
-                                            {"label": "April", "value": "APR"},
-                                            {"label": "May", "value": "MAY"},
-                                            {"label": "June", "value": "JUN"},
-                                            {"label": "July", "value": "JUL"},
-                                            {"label": "August", "value": "AUG"},
-                                            {"label": "September", "value": "SEP"},
-                                            {"label": "October", "value": "OCT"},
-                                            {"label": "November", "value": "NOV"},
-                                            {"label": "December", "value": "DEC"},
-                                        ],
-                                        value="ALL",
-                                        clearable=False,
-                                        placeholder="Filter by Month",
-                                        style={
-                                            "width": "150px",
-                                            "marginLeft": "10px",
-                                            "backgroundColor": DARK_THEME["background"],
-                                            "color": DARK_THEME["text"],
-                                        },
-                                    ),
-                                    html.Button(
-                                        "Run Analysis",
-                                        id="run-button",
-                                        style={
-                                            "backgroundColor": DARK_THEME["accent"],
-                                            "color": "white",
-                                            "border": "none",
-                                            "padding": "10px 20px",
-                                            "borderRadius": "5px",
-                                            "marginLeft": "10px",
-                                            "cursor": "pointer",
-                                            "fontSize": "14px",
-                                        },
-                                    ),
-                                    dcc.Dropdown(
-                                        id="theme-toggle",
-                                        options=[
-                                            {"label": "Dark Mode", "value": "plotly_dark"},
-                                            {"label": "Light Mode", "value": "plotly_white"},
-                                        ],
-                                        value="plotly_dark",
-                                        clearable=False,
-                                        style={
-                                            "width": "150px",
-                                            "marginLeft": "10px",
-                                            "backgroundColor": DARK_THEME["background"],
-                                            "color": DARK_THEME["text"],
-                                        },
-                                    ),
-                                ],
-                                style={"display": "flex", "alignItems": "center", "marginTop": "10px"},
-                            ),
-                        ],
+                    dcc.Upload(
+                        id="upload-json",
+                        children=html.Button(
+                            "📁 Upload JSON",
+                            style={
+                                "backgroundColor": DARK_THEME["accent"],
+                                "color": "white",
+                                "border": "none",
+                                "padding": "10px 20px",
+                                "borderRadius": "5px",
+                                "cursor": "pointer",
+                                "fontSize": "14px",
+                            },
+                        ),
+                        multiple=False,
+                    ),
+                    dcc.Input(
+                        id="ticker-input",
+                        type="text",
+                        placeholder="Ticker (e.g. SOXL)",
                         style={
-                            "padding": "20px",
-                            "backgroundColor": DARK_THEME["secondary-background"],
-                            "borderRadius": "10px",
-                            "marginBottom": "20px",
-                            "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)",
+                            "padding": "8px 15px",
+                            "borderRadius": "5px",
+                            "border": f"1px solid {DARK_THEME['accent']}",
+                            "backgroundColor": DARK_THEME["background"],
+                            "color": DARK_THEME["text"],
+                            "width": "120px",
                         },
-                    )
+                    ),
+                    html.Button(
+                        "🔄 Fetch Chain",
+                        id="fetch-chain-button",
+                        style={
+                            "backgroundColor": DARK_THEME["accent"],
+                            "color": "white",
+                            "border": "none",
+                            "padding": "10px 20px",
+                            "borderRadius": "5px",
+                            "cursor": "pointer",
+                            "fontSize": "14px",
+                        },
+                    ),
+                    dcc.Dropdown(
+                        id="expiry-filter",
+                        placeholder="Select Week",
+                        style={
+                            "width": "180px",
+                            "backgroundColor": DARK_THEME["background"],
+                            "color": "black",
+                        },
+                    ),
+                    dcc.Dropdown(
+                        id="month-filter",
+                        options=[
+                            {"label": "All Months", "value": "ALL"},
+                            {"label": "January", "value": "JAN"},
+                            {"label": "February", "value": "FEB"},
+                            {"label": "March", "value": "MAR"},
+                            {"label": "April", "value": "APR"},
+                            {"label": "May", "value": "MAY"},
+                            {"label": "June", "value": "JUN"},
+                            {"label": "July", "value": "JUL"},
+                            {"label": "August", "value": "AUG"},
+                            {"label": "September", "value": "SEP"},
+                            {"label": "October", "value": "OCT"},
+                            {"label": "November", "value": "NOV"},
+                            {"label": "December", "value": "DEC"},
+                        ],
+                        value="ALL",
+                        clearable=False,
+                        placeholder="Filter by Month",
+                        style={
+                            "width": "150px",
+                            "backgroundColor": DARK_THEME["background"],
+                            "color": "black",
+                        },
+                    ),
+                    html.Button(
+                        "Run Analysis",
+                        id="run-button",
+                        style={
+                            "backgroundColor": DARK_THEME["accent"],
+                            "color": "white",
+                            "border": "none",
+                            "padding": "10px 20px",
+                            "borderRadius": "5px",
+                            "cursor": "pointer",
+                            "fontSize": "14px",
+                        },
+                    ),
+                    dcc.Dropdown(
+                        id="theme-toggle",
+                        options=[
+                            {"label": "Dark Mode", "value": "plotly_dark"},
+                            {"label": "Light Mode", "value": "plotly_white"},
+                        ],
+                        value="plotly_dark",
+                        clearable=False,
+                        style={
+                            "width": "150px",
+                            "backgroundColor": DARK_THEME["background"],
+                            "color": "black",
+                        },
+                    ),
                 ],
-                style={"marginBottom": "20px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "alignItems": "center",
+                    "gap": "10px",
+                    "padding": "20px",
+                    "backgroundColor": DARK_THEME["secondary-background"],
+                    "borderRadius": "10px",
+                    "marginBottom": "20px",
+                    "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)",
+                },
                 id="controls",
             ),
 
@@ -285,21 +260,7 @@ def serve_layout():
                 }
             ),
 
-            # Tabs section
-            dcc.Tabs(
-                id="tabs",
-                value="tab-overview",
-                children=[
-                    dcc.Tab(label="GEX Overview", value="tab-overview"),
-                    dcc.Tab(label="Call/Put Analysis", value="tab-detail"),
-                    dcc.Tab(label="Historical GEX", value="tab-historical"),
-                ],
-                colors={
-                    "border": DARK_THEME['accent'],
-                    "primary": DARK_THEME['accent'],
-                    "background": DARK_THEME['secondary-background']
-                }
-            ),
+            dcc.Store(id="tab-store", data="tab-overview"),
 
             # Content section
             html.Div(
