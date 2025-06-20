@@ -152,14 +152,16 @@ def register_callbacks(app):
 
         chart_layout = {
             "template": theme,
-            "font": {"size": 12, "color": DARK_THEME['text']},
+            "font": {"size": 12, "color": DARK_THEME["text"]},
             "paper_bgcolor": "rgba(0,0,0,0)",
             "plot_bgcolor": "rgba(0,0,0,0)",
             "height": 700,
             "margin": dict(l=50, r=40, t=50, b=40),
             "xaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}, "nticks": 20},
             "yaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}},
-            "legend": {"bgcolor": "rgba(0,0,0,0)", "font": {"size": 12}}
+            "legend": {"bgcolor": "rgba(0,0,0,0)", "font": {"size": 12}},
+            "hovermode": "x unified",
+            "transition": {"duration": 500},
         }
 
         filtered_df = df
@@ -177,9 +179,9 @@ def register_callbacks(app):
 
         if tab == "tab-detail":
             fig = make_subplots(rows=2, cols=1, subplot_titles=("Call vs Put Gamma Exposure", "Call vs Put Open Interest"), vertical_spacing=0.15)
-            fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["CallGEX"], name="Call GEX", marker_color='green', opacity=0.7), row=1, col=1)
+            fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["CallGEX"], name="Call GEX", marker_color=DARK_THEME["accent"], opacity=0.7), row=1, col=1)
             fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["PutGEX"], name="Put GEX", marker_color=DARK_THEME['put-color'], opacity=0.7), row=1, col=1)
-            fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["CallOI"], name="Call OI", marker_color='green', opacity=0.7), row=2, col=1)
+            fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["CallOI"], name="Call OI", marker_color=DARK_THEME["accent"], opacity=0.7), row=2, col=1)
             fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["PutOI"], name="Put OI", marker_color=DARK_THEME['put-color'], opacity=0.7), row=2, col=1)
             for row in [1, 2]:
                 fig.add_vline(x=spot, line_color="red", row=row, col=1, annotation_text=f"Spot: {spot:.2f}" if row == 1 else None)
@@ -193,15 +195,32 @@ def register_callbacks(app):
             fig.update_yaxes(title_text="Open Interest", row=2, col=1)
             return dcc.Graph(figure=fig, style={"backgroundColor": DARK_THEME['background']})
 
-        if tab == "tab-curve":
+        if tab == "tab-historical":
+            json_data = data.get("raw_json", {})
+            ticker = data.get("ticker", "")
+            if json_data:
+                _, spot, zero, levels, profile = run_gex_analysis(json_data, ticker, selected_expiry=None)
             fig_curve = go.Figure()
-            fig_curve.add_trace(go.Scatter(x=levels, y=profile, mode='lines', name='Gamma Profile', line=dict(color=DARK_THEME['accent'], width=2)))
+            fig_curve.add_trace(
+                go.Scatter(
+                    x=levels,
+                    y=profile,
+                    mode="lines",
+                    name="GEX Profile",
+                    line=dict(color=DARK_THEME["accent"], width=2),
+                )
+            )
             fig_curve.add_hline(y=0, line_color="#333333")
             fig_curve.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
             if zero:
-                fig_curve.add_vline(x=zero, line_color="green", annotation_text=f"Zero Gamma: {zero:.2f}", annotation_position="left")
-            fig_curve.update_layout(title="Gamma Exposure Profile", **chart_layout)
-            return dcc.Graph(figure=fig_curve, style={"backgroundColor": DARK_THEME['background']})
+                fig_curve.add_vline(
+                    x=zero,
+                    line_color="green",
+                    annotation_text=f"Zero Gamma: {zero:.2f}",
+                    annotation_position="left",
+                )
+            fig_curve.update_layout(title="Historical Gamma Exposure", **chart_layout)
+            return dcc.Graph(figure=fig_curve, style={"backgroundColor": DARK_THEME["background"]})
 
         if tab == "tab-callput":
             fig_callput = go.Figure()
@@ -231,6 +250,18 @@ def register_callbacks(app):
         style = style or {}
         current = style.get("transform", "translateX(100%)")
         style["transform"] = "translateX(0)" if current != "translateX(0)" else "translateX(100%)"
+        return style
+
+    @app.callback(
+        Output("sidebar", "style"),
+        Input("menu-toggle", "n_clicks"),
+        State("sidebar", "style"),
+        prevent_initial_call=True,
+    )
+    def toggle_sidebar(n_clicks, style):
+        style = style or {}
+        current = style.get("left", "-220px")
+        style["left"] = "0" if current != "0" else "-220px"
         return style
 
     @app.callback(
