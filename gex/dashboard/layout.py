@@ -260,7 +260,7 @@ def serve_layout():
                 }
             ),
 
-            dcc.Store(id="tab-store", data="tab-overview"),
+            dcc.Store(id="view-store", data="tab-overview"),
 
             # Content section
             html.Div(
@@ -270,6 +270,9 @@ def serve_layout():
                     "borderRadius": "10px",
                     "padding": "20px",
                     "marginTop": "20px",
+                    "width": "90%",
+                    "marginLeft": "auto",
+                    "marginRight": "auto",
                     "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"
                 }
             ),

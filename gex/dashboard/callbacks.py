@@ -119,7 +119,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output('tab-content', 'children'),
-        [Input('tab-store', 'data'),
+        [Input('view-store', 'data'),
          Input('gex-store', 'data'),
          Input('theme-toggle', 'value'),
          Input('expiry-filter', 'value'),
@@ -155,7 +155,7 @@ def register_callbacks(app):
             "font": {"size": 12, "color": DARK_THEME["text"]},
             "paper_bgcolor": "rgba(0,0,0,0)",
             "plot_bgcolor": "rgba(0,0,0,0)",
-            "height": 700,
+            "height": 800,
             "margin": dict(l=50, r=40, t=50, b=40),
             "xaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}, "nticks": 20},
             "yaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}},
@@ -309,7 +309,7 @@ def register_callbacks(app):
             return note.content
 
     @app.callback(
-        Output("tab-store", "data"),
+        Output("view-store", "data"),
         [Input("nav-options", "n_clicks"),
          Input("nav-overview", "n_clicks"),
          Input("nav-historical", "n_clicks"),
@@ -336,7 +336,7 @@ def register_callbacks(app):
          Output("nav-overview", "className"),
          Output("nav-historical", "className"),
          Output("nav-notes", "className")],
-        Input("tab-store", "data"),
+        Input("view-store", "data"),
         prevent_initial_call=False,
     )
     def highlight(active):
