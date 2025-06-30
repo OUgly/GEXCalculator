@@ -13,12 +13,14 @@ Base.metadata.create_all(bind=engine)
 # Initialize Schwab client (will be created when needed)
 _schwab_client = None
 
-def get_chain_data(ticker: str) -> dict:
-    """Fetch option chain data from Schwab API."""
+def get_chain_data(ticker: str, force_refresh: bool = False) -> dict:
+    """Fetch option chain data from the Schwab API."""
     global _schwab_client
     try:
-        if _schwab_client is None:
-            _schwab_client = SchwabClient()  # keep token so we don't log in every time
+        if force_refresh:
+            _schwab_client = SchwabClient(clean_token=True)
+        elif _schwab_client is None:
+            _schwab_client = SchwabClient(clean_token=False)
         return _schwab_client.fetch_option_chain(ticker)
     except Exception as e:
         raise ValueError(f"Failed to fetch option chain data: {str(e)}")
@@ -50,7 +52,7 @@ def fetch_and_save_chain(ticker: str, force_refresh: bool = False) -> dict:
             if age <= timedelta(minutes=30):
                 return json.loads(row.raw_json)
 
-        data = get_chain_data(ticker)
+        data = get_chain_data(ticker, force_refresh=force_refresh)
         save_chain_to_db(session, ticker, datetime.utcnow(), data)
         return data
 
