@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional
 from functools import wraps
 import httpx
 from dotenv import load_dotenv
-from schwab.auth import client_from_manual_flow
+from schwab.auth import client_from_manual_flow, client_from_token_file
 
 # Configure logging with more detail
 logging.basicConfig(
@@ -68,27 +68,47 @@ CALLBACK_URL = "https://127.0.0.1:8182"  # Must use HTTPS for Schwab
 
 class SchwabClient:
     """Client for interacting with Schwab's API with improved error handling."""
-    
-    def __init__(self, clean_token: bool = True):
-        """
-        Initialize the Schwab API client with improved error handling.
-        
+
+    def __init__(self, clean_token: bool = False):
+        """Initialize the Schwab API client.
+
         Args:
-            clean_token: If True, removes any existing token file before authenticating (default: True)
+            clean_token: When ``True`` the cached token file is deleted and a
+                new OAuth flow is forced. Defaults to ``False`` so the existing
+                token is reused if present.
         """
         try:
-            # Always clean the token to avoid auth issues
-            if clean_token and os.path.exists("schwab_token.json"):
-                os.remove("schwab_token.json")
+            token_path = "schwab_token.json"
+
+            if clean_token and os.path.exists(token_path):
+                os.remove(token_path)
                 logger.info("Removed existing token file")
-            
-            logger.info("Attempting to create Schwab client...")
-            self.client = client_from_manual_flow(
-                api_key=CLIENT_ID,
-                app_secret=CLIENT_SECRET,
-                callback_url=CALLBACK_URL,
-                token_path="schwab_token.json"
-            )
+
+            client = None
+
+            if not clean_token and os.path.exists(token_path):
+                try:
+                    logger.info("Loading Schwab client from existing token")
+                    client = client_from_token_file(
+                        token_path, CLIENT_ID, CLIENT_SECRET
+                    )
+                    # If the token is older than 6.5 days, force a new login
+                    if client.token_age() >= 60 * 60 * 24 * 6.5:
+                        logger.info("Existing token is too old; initiating new OAuth flow")
+                        client = None
+                except Exception as e:
+                    logger.warning(f"Failed to load token file: {e}; starting OAuth flow")
+
+            if client is None:
+                logger.info("Starting Schwab OAuth flow")
+                client = client_from_manual_flow(
+                    api_key=CLIENT_ID,
+                    app_secret=CLIENT_SECRET,
+                    callback_url=CALLBACK_URL,
+                    token_path=token_path,
+                )
+
+            self.client = client
             logger.info("Successfully created Schwab client")
             
         except Exception as e:
