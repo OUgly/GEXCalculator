@@ -119,7 +119,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output('tab-content', 'children'),
-        [Input('tabs', 'value'),
+        [Input('view-store', 'data'),
          Input('gex-store', 'data'),
          Input('theme-toggle', 'value'),
          Input('expiry-filter', 'value'),
@@ -155,7 +155,7 @@ def register_callbacks(app):
             "font": {"size": 12, "color": DARK_THEME["text"]},
             "paper_bgcolor": "rgba(0,0,0,0)",
             "plot_bgcolor": "rgba(0,0,0,0)",
-            "height": 700,
+            "height": 800,
             "margin": dict(l=50, r=40, t=50, b=40),
             "xaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}, "nticks": 20},
             "yaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}},
@@ -168,7 +168,7 @@ def register_callbacks(app):
 
         if tab == "tab-overview":
             fig = go.Figure()
-            fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["TotalGEX"], name="Total GEX", marker_color=DARK_THEME['accent']))
+            fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["TotalGEX"], name="Total GEX", marker_color=DARK_THEME['put-color']))
             fig.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
             if zero:
                 fig.add_vline(x=zero, line_color="green", annotation_text=f"Zero Gamma: {zero:.2f}", annotation_position="left")
@@ -242,7 +242,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output("notes-sidebar", "style"),
-        Input("notes-toggle", "n_clicks"),
+        Input("nav-notes", "n_clicks"),
         State("notes-sidebar", "style"),
         prevent_initial_call=True,
     )
@@ -307,3 +307,39 @@ def register_callbacks(app):
         with SessionLocal() as session:
             note = get_or_create_note(session, symbol)
             return note.content
+
+    @app.callback(
+        Output("view-store", "data"),
+        [Input("nav-options", "n_clicks"),
+         Input("nav-overview", "n_clicks"),
+         Input("nav-historical", "n_clicks"),
+         Input("nav-notes", "n_clicks")],
+        prevent_initial_call=True,
+    )
+    def switch_tab(opt, over, hist, notes_btn):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        btn = ctx.triggered[0]["prop_id"].split(".")[0]
+        if btn == "nav-options":
+            return "tab-detail"
+        if btn == "nav-overview":
+            return "tab-overview"
+        if btn == "nav-historical":
+            return "tab-historical"
+        if btn == "nav-notes":
+            return "notes"
+        return no_update
+
+    @app.callback(
+        [Output("nav-options", "className"),
+         Output("nav-overview", "className"),
+         Output("nav-historical", "className"),
+         Output("nav-notes", "className")],
+        Input("view-store", "data"),
+        prevent_initial_call=False,
+    )
+    def highlight(active):
+        def cls(name):
+            return "sidebar-btn active" if active == name else "sidebar-btn"
+        return cls("tab-detail"), cls("tab-overview"), cls("tab-historical"), cls("notes")
