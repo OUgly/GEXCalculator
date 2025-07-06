@@ -18,3 +18,4 @@ ENV/
 
 # Local data
 schwab_token.json
+gex.db
