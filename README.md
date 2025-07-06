@@ -29,6 +29,8 @@ file or export the following variables before running the application:
 ```
 SCHWAB_CLIENT_ID=your_client_id
 SCHWAB_CLIENT_SECRET=your_client_secret
+DEBUG=false
+LOG_LEVEL=INFO
 ```
 
 You can copy `.env.example` as a starting point.
