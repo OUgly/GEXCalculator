@@ -1,5 +1,9 @@
 import builtins
+import os
 import pytest
+
+os.environ.setdefault("SCHWAB_CLIENT_ID", "dummy")
+os.environ.setdefault("SCHWAB_CLIENT_SECRET", "dummy")
 
 from gex import schwab_api
 from gex.schwab_api import SchwabClient

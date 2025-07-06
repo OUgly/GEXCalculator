@@ -20,3 +20,15 @@ the project root. The tables are created automatically by SQLAlchemy via the
 `Base.metadata.create_all` call in `gex/gex_backend.py`. No manual steps are
 required—simply run the app and the database will be initialized if it does not
 already exist.
+
+## Environment Variables
+
+The Schwab API credentials are read from environment variables. Create a `.env`
+file or export the following variables before running the application:
+
+```
+SCHWAB_CLIENT_ID=your_client_id
+SCHWAB_CLIENT_SECRET=your_client_secret
+```
+
+You can copy `.env.example` as a starting point.
