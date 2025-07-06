@@ -7,9 +7,10 @@ import httpx
 from dotenv import load_dotenv
 from schwab.auth import client_from_manual_flow, client_from_token_file
 
-# Configure logging with more detail
+# Configure logging with adjustable level
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, log_level, logging.INFO),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('schwab_debug.log'),
@@ -165,17 +166,14 @@ class SchwabClient:
         try:
             logger.info(f"Fetching option chain for {symbol}")
             
-            # Log pre-request details
-            logger.debug("Making API request with following parameters:")
-            logger.debug(f"Symbol: {symbol}")
+            # Log pre-request details without sensitive headers
+            logger.debug(f"Requesting option chain for symbol: {symbol}")
             
             response = self.client.get_option_chain(symbol.upper())
             
             # Log complete request/response cycle
             logger.debug(f"Request URL: {response.request.url}")
-            logger.debug(f"Request headers: {dict(response.request.headers)}")
             logger.debug(f"Response status: {response.status_code}")
-            logger.debug(f"Response headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 data = response.json()

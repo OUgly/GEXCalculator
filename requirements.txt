@@ -6,3 +6,4 @@ dash>=2.11.0  #Used for building web applications.
 certifi>=2025.0.0  #Used for SSL certificates.
 schwab-py>=0.10.0  #Used for interacting with Charles Schwab's API.
 SQLAlchemy>=2.0.0  #Used for database interactions.
+python-dotenv>=1.0.0  #Used for loading environment variables from .env files.
