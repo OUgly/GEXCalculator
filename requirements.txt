@@ -1,8 +1,8 @@
-authlib>=1.4.0
-httpx>=0.24.1
-pandas>=2.0.0
-plotly>=5.15.0
-dash>=2.11.0
-certifi>=2025.0.0
-schwab-py>=0.10.0
-SQLAlchemy>=2.0.0
+authlib>=1.4.0  #Used for OAuth2 flows.
+httpx>=0.24.1  #Used for making HTTP requests.
+pandas>=2.0.0  #Used for data manipulation and analysis.
+plotly>=5.15.0  #Used for creating interactive plots.
+dash>=2.11.0  #Used for building web applications.
+certifi>=2025.0.0  #Used for SSL certificates.
+schwab-py>=0.10.0  #Used for interacting with Charles Schwab's API.
+SQLAlchemy>=2.0.0  #Used for database interactions.
