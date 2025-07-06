@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Constants
-CLIENT_ID = "9iY4fkoLKGMUoRgdWJgzM6bZuRMTwi84"
-CLIENT_SECRET = "V0xhZ86bdXAXyiAI"
+CLIENT_ID = os.environ["SCHWAB_CLIENT_ID"]
+CLIENT_SECRET = os.environ["SCHWAB_CLIENT_SECRET"]
 CALLBACK_URL = "https://127.0.0.1:8182"  # Must use HTTPS for Schwab
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # Base delay in seconds
@@ -61,10 +61,7 @@ def retry_with_backoff(retries=MAX_RETRIES, delay=RETRY_DELAY):
         return wrapper
     return decorator
 
-# Constants - Using simpler approach that works
-CLIENT_ID = "9iY4fkoLKGMUoRgdWJgzM6bZuRMTwi84"
-CLIENT_SECRET = "V0xhZ86bdXAXyiAI"
-CALLBACK_URL = "https://127.0.0.1:8182"  # Must use HTTPS for Schwab
+
 
 class SchwabClient:
     """Client for interacting with Schwab's API with improved error handling."""
