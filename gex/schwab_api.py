@@ -2,14 +2,16 @@ import os
 import logging
 import time
 from typing import Dict, Any, Optional
+from authlib.integrations.base_client.errors import InvalidTokenError
 from functools import wraps
 import httpx
 from dotenv import load_dotenv
-from schwab.auth import client_from_manual_flow
+from schwab.auth import client_from_manual_flow, client_from_token_file
 
-# Configure logging with more detail
+# Configure logging with adjustable level
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, log_level, logging.INFO),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('schwab_debug.log'),
@@ -22,8 +24,8 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Constants
-CLIENT_ID = "9iY4fkoLKGMUoRgdWJgzM6bZuRMTwi84"
-CLIENT_SECRET = "V0xhZ86bdXAXyiAI"
+CLIENT_ID = os.environ["SCHWAB_CLIENT_ID"]
+CLIENT_SECRET = os.environ["SCHWAB_CLIENT_SECRET"]
 CALLBACK_URL = "https://127.0.0.1:8182"  # Must use HTTPS for Schwab
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # Base delay in seconds
@@ -61,34 +63,51 @@ def retry_with_backoff(retries=MAX_RETRIES, delay=RETRY_DELAY):
         return wrapper
     return decorator
 
-# Constants - Using simpler approach that works
-CLIENT_ID = "9iY4fkoLKGMUoRgdWJgzM6bZuRMTwi84"
-CLIENT_SECRET = "V0xhZ86bdXAXyiAI"
-CALLBACK_URL = "https://127.0.0.1:8182"  # Must use HTTPS for Schwab
+
 
 class SchwabClient:
     """Client for interacting with Schwab's API with improved error handling."""
-    
-    def __init__(self, clean_token: bool = True):
-        """
-        Initialize the Schwab API client with improved error handling.
-        
+
+    def __init__(self, clean_token: bool = False):
+        """Initialize the Schwab API client.
+
         Args:
-            clean_token: If True, removes any existing token file before authenticating (default: True)
+            clean_token: When ``True`` the cached token file is deleted and a
+                new OAuth flow is forced. Defaults to ``False`` so the existing
+                token is reused if present.
         """
         try:
-            # Always clean the token to avoid auth issues
-            if clean_token and os.path.exists("schwab_token.json"):
-                os.remove("schwab_token.json")
+            token_path = "schwab_token.json"
+
+            if clean_token and os.path.exists(token_path):
+                os.remove(token_path)
                 logger.info("Removed existing token file")
-            
-            logger.info("Attempting to create Schwab client...")
-            self.client = client_from_manual_flow(
-                api_key=CLIENT_ID,
-                app_secret=CLIENT_SECRET,
-                callback_url=CALLBACK_URL,
-                token_path="schwab_token.json"
-            )
+
+            client = None
+
+            if not clean_token and os.path.exists(token_path):
+                try:
+                    logger.info("Loading Schwab client from existing token")
+                    client = client_from_token_file(
+                        token_path, CLIENT_ID, CLIENT_SECRET
+                    )
+                    # If the token is older than 6.5 days, force a new login
+                    if client.token_age() >= 60 * 60 * 24 * 6.5:
+                        logger.info("Existing token is too old; initiating new OAuth flow")
+                        client = None
+                except Exception as e:
+                    logger.warning(f"Failed to load token file: {e}; starting OAuth flow")
+
+            if client is None:
+                logger.info("Starting Schwab OAuth flow")
+                client = client_from_manual_flow(
+                    api_key=CLIENT_ID,
+                    app_secret=CLIENT_SECRET,
+                    callback_url=CALLBACK_URL,
+                    token_path=token_path,
+                )
+
+            self.client = client
             logger.info("Successfully created Schwab client")
             
         except Exception as e:
@@ -148,17 +167,14 @@ class SchwabClient:
         try:
             logger.info(f"Fetching option chain for {symbol}")
             
-            # Log pre-request details
-            logger.debug("Making API request with following parameters:")
-            logger.debug(f"Symbol: {symbol}")
+            # Log pre-request details without sensitive headers
+            logger.debug(f"Requesting option chain for symbol: {symbol}")
             
             response = self.client.get_option_chain(symbol.upper())
             
             # Log complete request/response cycle
             logger.debug(f"Request URL: {response.request.url}")
-            logger.debug(f"Request headers: {dict(response.request.headers)}")
             logger.debug(f"Response status: {response.status_code}")
-            logger.debug(f"Response headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 data = response.json()
@@ -181,11 +197,20 @@ class SchwabClient:
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error fetching option chain: {str(e)}", exc_info=True)
             raise SchwabAPIError(
-                f"HTTP error fetching option chain: {str(e)}", 
+                f"HTTP error fetching option chain: {str(e)}",
                 status_code=e.response.status_code,
                 response_text=e.response.text
             )
-            
+
+        except InvalidTokenError:
+            token_file = "schwab_token.json"
+            if os.path.exists(token_file):
+                os.remove(token_file)
+                logger.warning("Removed invalid token file")
+            raise SchwabAPIError(
+                "Authentication token invalid or expired. Please rerun the app to re-authenticate."
+            )
+
         except Exception as e:
             logger.error(f"Error fetching option chain: {str(e)}", exc_info=True)
             if hasattr(e, 'response'):

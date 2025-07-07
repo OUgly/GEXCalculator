@@ -1,11 +1,13 @@
+# Oauth3Client, JSON, OS helpers, and configurations for Schwab API authentication.
+
 from authlib.integrations.httpx_client import OAuth2Client
 import json
 import os
-import time
-import logging
-import webbrowser
-from urllib.parse import urlparse
-from dotenv import load_dotenv
+import time # Used for OAuth2 client interactions and token management
+import logging # Used for logging information and errors
+import webbrowser # Used for OAuth2 client interactions
+from urllib.parse import urlparse # Parse URLs for OAuth callback handling
+from dotenv import load_dotenv # Load environment variables from .env file
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,14 +16,24 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class SchwartzAuthManager:
+'''
+Class serves as a blueprint for managing OAuth2 authentication with Schwab's API.
+It handles token management, including loading, saving, and refreshing tokens.
+Without this class, the application would not be able to authenticate with Schwab's API.
+This class is essential for securely managing access tokens required for API requests.
+This class abstracts the OAuth2 flow, making it easier to integrate with Schwab's API.
+It provides methods to create a new token, load an existing token, and save tokens to a file.
+The class also handles the OAuth2 authorization flow, including opening a browser for user login.
+'''
+class SchwartzAuthManager: 
     """Manages Schwartz API authentication using OAuth2."""
     
+    # Accepts client_id, client_secret, and optional parameters for token management.
     def __init__(
-        self,
+        self, # Self is the instance of the class, allowing access to its attributes and methods
         client_id: str,
         client_secret: str,
-        token_path: str = "schwab_token.json",
+        token_path: str = "schwab_token.json", # Path to saved token file / save token to this file if it doesnt already exist
         callback_url: str = "https://127.0.0.1",  # Must match Schwab configuration
         auth_url: str = "https://api.schwabapi.com/v1/oauth/authorize",
         token_url: str = "https://api.schwabapi.com/v1/oauth/token"
@@ -32,9 +44,13 @@ class SchwartzAuthManager:
         self.callback_url = callback_url
         self.auth_url = auth_url
         self.token_url = token_url
-        self.token = self._load_token()
-        
-    def _load_token(self) -> dict:
+        self.token = self._load_token()  # Reads the token from file if it exists and is not expired
+
+
+    # Checks if the token file exists
+    # If it exists, loads the token and checks if it is expired
+    # If it does not exist or is expired, returns None
+    def _load_token(self) -> dict: # Self is the instance of the class, allowing access to its attributes and methods
         """Load token from file if it exists and is not expired."""
         if not os.path.exists(self.token_path):
             return None
@@ -50,11 +66,13 @@ class SchwartzAuthManager:
                     logger.info("Token is too old, will need to create new one")
                     return None
                     
-            return token
+            return token # Return the loaded token if it exists and is not expired
+        
         except Exception as e:
             logger.error(f"Error loading token: {e}")
             return None
-            
+           # If there is an error loading the token, log the error and return None
+
     def _save_token(self, token: dict):
         """Save token to file with creation timestamp."""
         token['created_at'] = time.time()
@@ -65,7 +83,7 @@ class SchwartzAuthManager:
     def get_oauth_client(self) -> OAuth2Client:
         """Get an OAuth2 client, either from cached token or new auth flow."""
         if self.token:
-            logger.info("Using existing token")
+            logger.info("Using existing token") # If a valid token is found, use it to create the OAuth2 client
             client = OAuth2Client(
                 client_id=self.client_id,
                 client_secret=self.client_secret,
@@ -88,9 +106,10 @@ class SchwartzAuthManager:
 
         # Define required scopes for Schwab API
         scopes = ['market_data']  # Add other scopes as needed
+        # A scope is a permission that the application requests from the user
         
         # Get the authorization URL with scopes
-        auth_url, state = client.create_authorization_url(
+        auth_url, state = client.create_authorization_url( 
             self.auth_url,
             scope=' '.join(scopes)
         )
@@ -155,3 +174,5 @@ class SchwartzAuthManager:
         if os.path.exists(self.token_path):
             os.remove(self.token_path)
             logger.info("Token file cleared")
+        # If the token file exists, remove it to force a new authentication flow
+        # Because the token is no longer valid, the user will need to re-authenticate

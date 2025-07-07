@@ -1,26 +1,28 @@
+# import numpy, pandas, json, datetime helpers, SQLAlchemy Session, norm from Scipy, 
+# and SchwabClient from schwab_api. Also imports models and session factory from db.py.
 import numpy as np
 import pandas as pd
 import json
 from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 from scipy.stats import norm
-from .schwab_api import SchwabClient  # Add this import
+from .schwab_api import SchwabClient
 from db import SessionLocal, OptionChain, Base, engine
 
 # Ensure tables exist
-Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine) # A table is created in the database if it does not already exist.
 
 # Initialize Schwab client (will be created when needed)
-_schwab_client = None
+_schwab_client = None # This will hold the SchwabClient instance to avoid re-authenticating every time
 
-def get_chain_data(ticker: str) -> dict:
+def get_chain_data(ticker: str) -> dict: 
     """Fetch option chain data from Schwab API."""
-    global _schwab_client
+    global _schwab_client # Use global variable to maintain client state across calls
     try:
         if _schwab_client is None:
             _schwab_client = SchwabClient()  # keep token so we don't log in every time
         return _schwab_client.fetch_option_chain(ticker)
-    except Exception as e:
+    except Exception as e: # Exception because it is a general error that can occur during the API call
         raise ValueError(f"Failed to fetch option chain data: {str(e)}")
 
 
