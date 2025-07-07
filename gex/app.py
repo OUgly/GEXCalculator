@@ -29,7 +29,7 @@ load_dotenv()
 
 if __name__ == "__main__":
     debug_mode = os.getenv("DEBUG", "False").lower() == "true"
-    app.run(debug=debug_mode)
+    app.run(host="0.0.0.0", port=8050, debug=debug_mode)
 
 # Dash automatically wraps a Flask server underneath.
 # The Flask server is used to serve the Dash app and handle HTTP requests.
