@@ -2,14 +2,16 @@ import os
 import logging
 import time
 from typing import Dict, Any, Optional
+from authlib.integrations.base_client.errors import InvalidTokenError
 from functools import wraps
 import httpx
 from dotenv import load_dotenv
 from schwab.auth import client_from_manual_flow, client_from_token_file
 
-# Configure logging with more detail
+# Configure logging with adjustable level
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, log_level, logging.INFO),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('schwab_debug.log'),
@@ -165,17 +167,14 @@ class SchwabClient:
         try:
             logger.info(f"Fetching option chain for {symbol}")
             
-            # Log pre-request details
-            logger.debug("Making API request with following parameters:")
-            logger.debug(f"Symbol: {symbol}")
+            # Log pre-request details without sensitive headers
+            logger.debug(f"Requesting option chain for symbol: {symbol}")
             
             response = self.client.get_option_chain(symbol.upper())
             
             # Log complete request/response cycle
             logger.debug(f"Request URL: {response.request.url}")
-            logger.debug(f"Request headers: {dict(response.request.headers)}")
             logger.debug(f"Response status: {response.status_code}")
-            logger.debug(f"Response headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 data = response.json()
@@ -198,11 +197,20 @@ class SchwabClient:
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error fetching option chain: {str(e)}", exc_info=True)
             raise SchwabAPIError(
-                f"HTTP error fetching option chain: {str(e)}", 
+                f"HTTP error fetching option chain: {str(e)}",
                 status_code=e.response.status_code,
                 response_text=e.response.text
             )
-            
+
+        except InvalidTokenError:
+            token_file = "schwab_token.json"
+            if os.path.exists(token_file):
+                os.remove(token_file)
+                logger.warning("Removed invalid token file")
+            raise SchwabAPIError(
+                "Authentication token invalid or expired. Please rerun the app to re-authenticate."
+            )
+
         except Exception as e:
             logger.error(f"Error fetching option chain: {str(e)}", exc_info=True)
             if hasattr(e, 'response'):
