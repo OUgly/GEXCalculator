@@ -23,12 +23,15 @@ already exist.
 
 ## Environment Variables
 
-The Schwab API credentials are read from environment variables. Create a `.env`
-file or export the following variables before running the application:
+Environment variables are loaded automatically from a `.env` file if present.
+Create this file or export the following variables before running the
+application:
 
 ```
 SCHWAB_CLIENT_ID=your_client_id
 SCHWAB_CLIENT_SECRET=your_client_secret
+DEBUG=false
+LOG_LEVEL=INFO
 ```
 
 You can copy `.env.example` as a starting point.
