@@ -2,6 +2,7 @@ import os
 import logging
 import time
 from typing import Dict, Any, Optional
+from authlib.integrations.base_client.errors import InvalidTokenError
 from functools import wraps
 import httpx
 from dotenv import load_dotenv
@@ -196,11 +197,20 @@ class SchwabClient:
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error fetching option chain: {str(e)}", exc_info=True)
             raise SchwabAPIError(
-                f"HTTP error fetching option chain: {str(e)}", 
+                f"HTTP error fetching option chain: {str(e)}",
                 status_code=e.response.status_code,
                 response_text=e.response.text
             )
-            
+
+        except InvalidTokenError:
+            token_file = "schwab_token.json"
+            if os.path.exists(token_file):
+                os.remove(token_file)
+                logger.warning("Removed invalid token file")
+            raise SchwabAPIError(
+                "Authentication token invalid or expired. Please rerun the app to re-authenticate."
+            )
+
         except Exception as e:
             logger.error(f"Error fetching option chain: {str(e)}", exc_info=True)
             if hasattr(e, 'response'):

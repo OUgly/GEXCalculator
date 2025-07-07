@@ -3,6 +3,7 @@
 from dash import Dash
 import os
 
+
 #These definitions are used to create the layout and register callbacks for the Dash app.
 from .dashboard.layout import serve_layout, INDEX_STRING
 from .dashboard.callbacks import register_callbacks
@@ -20,6 +21,9 @@ def create_app() -> Dash:
 #Instantiate the Dash app.
 #This is the main entry point for the application.
 app = create_app()
+
+# Load environment variables from .env if present
+load_dotenv()
 
 
 if __name__ == "__main__":
