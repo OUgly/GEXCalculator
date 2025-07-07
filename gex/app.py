@@ -2,7 +2,8 @@
 
 from dash import Dash
 import os
-
+import dotenv
+from dotenv import load_dotenv
 
 #These definitions are used to create the layout and register callbacks for the Dash app.
 from .dashboard.layout import serve_layout, INDEX_STRING
