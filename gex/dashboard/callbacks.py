@@ -9,13 +9,45 @@ from plotly.subplots import make_subplots
 from dash import dcc, html, Input, Output, State, no_update, callback_context
 
 from ..gex_backend import run_gex_analysis, load_chain_data
-from .layout import DARK_THEME
+from .layout_pro import DARK_THEME
 from db import SessionLocal
 from ..notes import get_or_create_note, update_note, list_symbols
 
 
 def register_callbacks(app):
     """Register all Dash callbacks with the provided app instance."""
+
+    def summary_cards(ticker: str, total_gex: float, spot: float, zero: float | None, updated: str):
+        def card(label, value):
+            return html.Div(
+                [
+                    html.Div(label, style={"fontSize": "12px", "opacity": 0.8}),
+                    html.Div(value, style={"fontSize": "18px", "fontWeight": 600}),
+                ],
+                style={
+                    "backgroundColor": DARK_THEME["secondary-background"],
+                    "border": f"1px solid {DARK_THEME['accent']}",
+                    "borderRadius": "10px",
+                    "padding": "12px 14px",
+                    "boxShadow": "0 2px 4px rgba(0,0,0,0.25)",
+                    "minWidth": "120px",
+                },
+            )
+        return html.Div(
+            [
+                card("Ticker", ticker or "-"),
+                card("Total GEX", f"{total_gex:+.2f}Bn"),
+                card("Spot", f"{spot:.2f}" if spot else "-"),
+                card("Zero Gamma", f"{zero:.2f}" if zero else "N/A"),
+                card("Updated", updated),
+            ],
+            style={
+                "display": "grid",
+                "gridTemplateColumns": "repeat(auto-fit, minmax(160px, 1fr))",
+                "gap": "12px",
+                "alignItems": "stretch",
+            },
+        )
 
     @app.callback(
         [Output('gex-store', 'data'),
@@ -24,12 +56,14 @@ def register_callbacks(app):
          Output('ticker-input', 'value'),
          Output('error-message', 'children')],
         [Input('run-button', 'n_clicks'),
-         Input('fetch-chain-button', 'n_clicks')],
+         Input('fetch-chain-button', 'n_clicks'),
+         Input('refresh-button', 'n_clicks'),
+         Input('auto-refresh-interval', 'n_intervals')],
         [State('upload-json', 'contents'),
          State('ticker-input', 'value')],
         prevent_initial_call=True
     )
-    def process_data(run_clicks, fetch_clicks, file_contents, ticker_input):
+    def process_data(run_clicks, fetch_clicks, refresh_clicks, auto_n, file_contents, ticker_input):
         """Process uploaded or fetched option chain data and store results."""
         ctx = callback_context
         if not ctx.triggered:
@@ -38,6 +72,9 @@ def register_callbacks(app):
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
         try:
+            # Early guard for run without file
+            if button_id == 'run-button' and not file_contents:
+                return None, "Upload a JSON chain file to analyze.", None, "", no_update
             if button_id == 'run-button':
                 if not file_contents:
                     return None, "⚠️ Upload JSON first.", None, "", no_update
@@ -47,15 +84,17 @@ def register_callbacks(app):
                 json_data = json.load(io.StringIO(decoded.decode('utf-8')))
                 ticker = json_data.get("symbol", "").upper()
 
-            elif button_id == 'fetch-chain-button':
+            elif button_id in ('fetch-chain-button', 'refresh-button', 'auto-refresh-interval'):
+                # Guard: if no ticker on refresh/fetch, keep UI state unchanged
+                if not ticker_input:
+                    return no_update, no_update, no_update, "", no_update
                 if not ticker_input:
                     return None, "⚠️ Enter a ticker first.", None, "", no_update
 
                 ticker = ticker_input.upper()
                 json_data = load_chain_data(ticker)
-
                 if json_data is None:
-                    return None, "❌ Error fetching data. Ticker may not exist.", None, ticker, ""
+                    return None, "Error fetching data. Ticker may not exist.", None, ticker, ""
 
             df, spot, zero, levels, profile = run_gex_analysis(json_data, ticker)
 
@@ -79,20 +118,19 @@ def register_callbacks(app):
             }
 
             total_gex = df["TotalGEX"].sum()
-            summary = f"Total GEX: {total_gex:+.2f}Bn | Spot: {spot:.2f}"
-            if zero:
-                summary += f" | Zero Gamma: {zero:.2f}"
-            else:
-                if button_id == 'fetch-chain-button':
-                    summary += " | No Zero Gamma crossing found"
+            # Add a lightweight timestamp to convey recency and polish
+            from datetime import datetime
+            updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cards = summary_cards(ticker, total_gex, spot, zero, updated)
 
-            return store, summary, None, ticker, ""
+            return store, cards, None, ticker, ""
 
         except Exception as e:  # pragma: no cover - debug helper
             print(f"Error in process_data: {str(e)}")
             import traceback
             print(traceback.format_exc())
-            return None, f"❌ Error: {str(e)}", None, ticker if ticker_input else "", f"❌ Error: {str(e)}"
+            msg = f"Error: {str(e)}"
+            return None, msg, None, ticker_input or "", msg
 
     @app.callback(
         Output('expiry-filter', 'options'),
@@ -129,7 +167,7 @@ def register_callbacks(app):
     def display_chart(tab, data, theme, selected_expiry, selected_month):
         """Render the appropriate chart based on user selections."""
         if not data:
-            return "Please upload data first."
+            return "Load data to view charts."
 
         df = pd.DataFrame(data["df"])
         spot = data.get("spot", 0)
@@ -150,32 +188,106 @@ def register_callbacks(app):
             df['Month'] = pd.to_datetime(df['Expiry']).dt.strftime('%b').str.upper()
             df = df[df['Month'] == selected_month]
 
+        uirev = f"{data.get('ticker','')}-{(selected_expiry or 'ALL')}-{(selected_month or 'ALL')}-{theme}"
         chart_layout = {
             "template": theme,
             "font": {"size": 12, "color": DARK_THEME["text"]},
             "paper_bgcolor": "rgba(0,0,0,0)",
             "plot_bgcolor": "rgba(0,0,0,0)",
-            "height": 800,
             "margin": dict(l=50, r=40, t=50, b=40),
-            "xaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}, "nticks": 20},
-            "yaxis": {"gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}},
+            "xaxis": {
+                "gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14}, "nticks": 20,
+                "showspikes": True, "spikedash": "dot", "spikethickness": 1, "spikecolor": "#666"
+            },
+            "yaxis": {
+                "gridcolor": "#333333", "zerolinecolor": "#333333", "title_font": {"size": 14},
+                "showspikes": True, "spikedash": "dot", "spikethickness": 1, "spikecolor": "#666"
+            },
             "legend": {"bgcolor": "rgba(0,0,0,0)", "font": {"size": 12}},
             "hovermode": "x unified",
-            "transition": {"duration": 500},
+            "hoverlabel": {"bgcolor": "#111111", "bordercolor": "#444444", "font": {"color": "#ffffff"}},
+            "transition": {"duration": 200},
+            "uirevision": uirev,
+        }
+
+        graph_config = {
+            "displayModeBar": "hover",
+            "displaylogo": False,
+            "scrollZoom": True,
+            "modeBarButtonsToRemove": ["lasso2d", "select2d", "autoScale2d", "toggleSpikelines"],
+            "toImageButtonOptions": {"height": 720, "width": 1280},
         }
 
         filtered_df = df
 
         if tab == "tab-overview":
-            fig = go.Figure()
-            fig.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["TotalGEX"], name="Total GEX", marker_color=DARK_THEME['put-color']))
-            fig.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
+            # Overview with three charts on one page (responsive grid)
+            fig_over = go.Figure()
+            fig_over.add_trace(go.Bar(x=filtered_df["Strike"], y=filtered_df["TotalGEX"], name="Total GEX", marker_color=DARK_THEME['put-color']))
+            fig_over.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
             if zero:
-                fig.add_vline(x=zero, line_color="green", annotation_text=f"Zero Gamma: {zero:.2f}", annotation_position="left")
-            fig.add_trace(go.Scatter(x=levels, y=profile, name="GEX Profile", line=dict(color=DARK_THEME['accent-light'], width=2), yaxis="y2"))
-            fig.update_layout(title="Gamma Exposure Overview", xaxis_title="Strike Price", yaxis_title="Gamma Exposure (Bn)",
-                              yaxis2=dict(title="GEX Profile", overlaying="y", side="right", showgrid=False), **chart_layout)
-            return dcc.Graph(figure=fig, style={"backgroundColor": DARK_THEME['background']})
+                fig_over.add_vline(x=zero, line_color="green", annotation_text=f"Zero Gamma: {zero:.2f}", annotation_position="left")
+            fig_over.add_trace(go.Scatter(x=levels, y=profile, name="GEX Profile", line=dict(color=DARK_THEME['accent-light'], width=2), yaxis="y2"))
+            fig_over.update_layout(title="Gamma Exposure Overview", xaxis_title="Strike", yaxis_title="Gamma Exposure (Bn)",
+                                   yaxis2=dict(title="GEX Profile", overlaying="y", side="right", showgrid=False), **chart_layout)
+
+            fig_gamma = go.Figure()
+            fig_gamma.add_bar(x=filtered_df["Strike"], y=filtered_df["CallGEX"] / 1e9, name="Call GEX", marker_color=DARK_THEME["accent"], opacity=0.85)
+            fig_gamma.add_bar(x=filtered_df["Strike"], y=filtered_df["PutGEX"] / 1e9, name="Put GEX", marker_color=DARK_THEME['put-color'], opacity=0.85)
+            fig_gamma.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
+            if zero:
+                fig_gamma.add_vline(x=zero, line_color="green", annotation_text=f"Zero Gamma: {zero:.2f}", annotation_position="left")
+            fig_gamma.update_layout(title="Call vs Put Gamma Exposure", barmode='overlay', **chart_layout)
+            fig_gamma.update_yaxes(title_text="Gamma Exposure (Bn)")
+
+            fig_oi = go.Figure()
+            fig_oi.add_bar(x=filtered_df["Strike"], y=filtered_df["CallOI"], name="Call OI", marker_color=DARK_THEME['accent'])
+            fig_oi.add_bar(x=filtered_df["Strike"], y=-filtered_df["PutOI"], name="Put OI", marker_color=DARK_THEME['put-color'])
+            fig_oi.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
+            fig_oi.update_layout(title="Open Interest Distribution", **chart_layout)
+            fig_oi.update_yaxes(title_text="Open Interest")
+
+            grid = html.Div([
+                dcc.Graph(
+                    figure=fig_over,
+                    config=graph_config,
+                    style={
+                        "height": "460px",
+                        "backgroundColor": DARK_THEME['background'],
+                        "gridColumn": "1 / -1",
+                        # Prevent width overflow in grid/flex containers
+                        "minWidth": "0",
+                        "width": "100%",
+                    },
+                ),
+                dcc.Graph(
+                    figure=fig_gamma,
+                    config=graph_config,
+                    style={
+                        "height": "420px",
+                        "backgroundColor": DARK_THEME['background'],
+                        "minWidth": "0",
+                        "width": "100%",
+                    },
+                ),
+                dcc.Graph(
+                    figure=fig_oi,
+                    config=graph_config,
+                    style={
+                        "height": "420px",
+                        "backgroundColor": DARK_THEME['background'],
+                        "minWidth": "0",
+                        "width": "100%",
+                    },
+                ),
+            ], style={
+                "display": "grid",
+                # Responsive columns: collapse to one column on narrow widths
+                "gridTemplateColumns": "repeat(auto-fit, minmax(420px, 1fr))",
+                "gap": "16px",
+                "alignItems": "stretch",
+            })
+            return grid
 
         if tab == "tab-detail":
             fig = make_subplots(rows=2, cols=1, subplot_titles=("Call vs Put Gamma Exposure", "Call vs Put Open Interest"), vertical_spacing=0.15)
@@ -193,7 +305,7 @@ def register_callbacks(app):
             fig.update_xaxes(title_text="Strike Price", row=2, col=1)
             fig.update_yaxes(title_text="Gamma Exposure (Bn)", row=1, col=1)
             fig.update_yaxes(title_text="Open Interest", row=2, col=1)
-            return dcc.Graph(figure=fig, style={"backgroundColor": DARK_THEME['background']})
+            return dcc.Graph(figure=fig, config=graph_config, style={"backgroundColor": DARK_THEME['background']})
 
         if tab == "tab-historical":
             json_data = data.get("raw_json", {})
@@ -220,7 +332,7 @@ def register_callbacks(app):
                     annotation_position="left",
                 )
             fig_curve.update_layout(title="Historical Gamma Exposure", **chart_layout)
-            return dcc.Graph(figure=fig_curve, style={"backgroundColor": DARK_THEME["background"]})
+            return dcc.Graph(figure=fig_curve, config=graph_config, style={"backgroundColor": DARK_THEME["background"]})
 
         if tab == "tab-callput":
             fig_callput = go.Figure()
@@ -228,7 +340,7 @@ def register_callbacks(app):
             fig_callput.add_bar(x=df["Strike"], y=df["PutGEX"] / 1e9, name="Put Gamma", marker_color=DARK_THEME['put-color'])
             fig_callput.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
             fig_callput.update_layout(title="Call vs Put Gamma Exposure", xaxis_title="Strike", yaxis_title="Gamma (Bn)", barmode="relative", **chart_layout)
-            return dcc.Graph(figure=fig_callput, style={"backgroundColor": DARK_THEME['background']})
+            return dcc.Graph(figure=fig_callput, config=graph_config, style={"backgroundColor": DARK_THEME['background']})
 
         if tab == "tab-oi":
             fig_oi = go.Figure()
@@ -236,7 +348,7 @@ def register_callbacks(app):
             fig_oi.add_bar(x=df["Strike"], y=-df["PutOI"], name="Put OI", marker_color=DARK_THEME['put-color'])
             fig_oi.add_vline(x=spot, line_color="red", annotation_text=f"Spot: {spot:.2f}")
             fig_oi.update_layout(title="Open Interest Distribution", xaxis_title="Strike", yaxis_title="Open Interest", barmode="relative", **chart_layout)
-            return dcc.Graph(figure=fig_oi, style={"backgroundColor": DARK_THEME['background']})
+            return dcc.Graph(figure=fig_oi, config=graph_config, style={"backgroundColor": DARK_THEME['background']})
 
         return "Unsupported tab selected"
 
@@ -343,3 +455,26 @@ def register_callbacks(app):
         def cls(name):
             return "sidebar-btn active" if active == name else "sidebar-btn"
         return cls("tab-detail"), cls("tab-overview"), cls("tab-historical"), cls("notes")
+
+    @app.callback(
+        Output("auto-refresh-interval", "disabled"),
+        Input("auto-refresh-toggle", "value"),
+        prevent_initial_call=False,
+    )
+    def toggle_auto_refresh(value):
+        return ("on" not in (value or []))
+
+    @app.callback(
+        Output("download-data", "data"),
+        Input("download-button", "n_clicks"),
+        State("gex-store", "data"),
+        prevent_initial_call=True,
+    )
+    def download_csv(n_clicks, data):
+        if not data:
+            return no_update
+        df = pd.DataFrame(data.get("df", []))
+        ticker = data.get("ticker", "GEX")
+        # Use dcc.send_data_frame to generate a downloadable CSV
+        return dcc.send_data_frame(df.to_csv, f"{ticker}_gex_data.csv", index=False)
+

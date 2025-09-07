@@ -2,11 +2,12 @@
 
 from dash import Dash
 import os
-import dotenv
+import logging
 from dotenv import load_dotenv
 
 #These definitions are used to create the layout and register callbacks for the Dash app.
-from .dashboard.layout import serve_layout, INDEX_STRING
+# Use the refined professional layout
+from .dashboard.layout_pro import serve_layout, INDEX_STRING
 from .dashboard.callbacks import register_callbacks
 
 
@@ -19,12 +20,21 @@ def create_app() -> Dash:
     register_callbacks(app)
     return app
 
-#Instantiate the Dash app.
-#This is the main entry point for the application.
-app = create_app()
-
-# Load environment variables from .env if present
+"""Initialize environment and logging before app creation."""
+# Load environment variables from .env if present (early for logging config)
 load_dotenv()
+
+# Configure logging from LOG_LEVEL env var
+level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+level = getattr(logging, level_str, logging.INFO)
+logging.basicConfig(level=level, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+# Quiet noisy werkzeug logs in production
+if level <= logging.INFO:
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
+
+# Instantiate the Dash app.
+# This is the main entry point for the application.
+app = create_app()
 
 
 if __name__ == "__main__":

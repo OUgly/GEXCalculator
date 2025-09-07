@@ -1,31 +1,39 @@
 # GEX Calculator
 
-This project provides a small Dash dashboard for exploring gamma exposure metrics using data from the Schwab API.
+Dash dashboard for professional exploration of Gamma Exposure (GEX) using Schwab option chain data. Includes caching, notes, CSV export, and a clean trading‑desk UI.
 
-## Usage
+## Quick Start
 
-Install the requirements and run the application:
+Install dependencies and run the app:
 
-```bash
+```
 pip install -r requirements.txt
 python -m gex.app
 ```
 
-The app will start a local server where you can upload option chain JSON files or fetch chains directly from Schwab.
+Open http://localhost:8050 to use the dashboard.
+
+## Controls
+
+- Upload JSON: Load a local option chain JSON file.
+- Ticker: Enter a symbol (e.g., SPY) to fetch from Schwab.
+- Fetch Chain: Retrieves and caches the latest chain (30‑min cache).
+- Refresh: Re-fetches the chain (respects cache freshness).
+- Auto Refresh (60s): Periodic refresh during market hours.
+- Expiry / Month: Focus on specific weeks or months.
+- Run Analysis: Rebuild charts after uploads/changes.
+- Theme: Toggle Plotly theme (dark/light).
+- Download CSV: Export the processed table for analysis.
+
+Notes are saved per-symbol in the local SQLite DB and appear in the Notes panel.
 
 ## Database
 
-On first run the application creates an SQLite database file named `gex.db` in
-the project root. The tables are created automatically by SQLAlchemy via the
-`Base.metadata.create_all` call in `gex/gex_backend.py`. No manual steps are
-required—simply run the app and the database will be initialized if it does not
-already exist.
+An SQLite database `gex.db` is created in the project root on first run. Tables are created automatically using SQLAlchemy in `gex/gex_backend.py`.
 
-## Environment Variables
+## Configuration
 
-Environment variables are loaded automatically from a `.env` file if present.
-Create this file or export the following variables before running the
-application:
+Environment variables are loaded from `.env` if present:
 
 ```
 SCHWAB_CLIENT_ID=your_client_id
@@ -34,4 +42,9 @@ DEBUG=false
 LOG_LEVEL=INFO
 ```
 
-You can copy `.env.example` as a starting point.
+Set `LOG_LEVEL=DEBUG` for detailed computation logs. Set `DEBUG=true` to enable Dash’s debug server in development.
+
+## Notes
+
+- API tokens are cached in `schwab_token.json`. If authentication fails, delete the file and restart.
+- Chain data is cached in the DB for 30 minutes to avoid excessive API calls.

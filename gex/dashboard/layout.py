@@ -5,7 +5,7 @@ from dash import html, dcc
 DARK_THEME = {
     "background": "#121212",
     "secondary-background": "#1A1A1A",
-    "text": "#e0e0e0",
+    "text": "#ffffff",
     "accent": "#00D4FF",
     "accent-light": "#00A3CC",
     "put-color": "#FF3D71",
@@ -332,7 +332,7 @@ def serve_layout():
                             "width": "100%",
                             "height": "80vh",
                             "backgroundColor": "#1a1a1a",
-                            "color": "#e0e0e0",
+                            "color": "#ffffff",
                             "border": "1px solid #4C008F",
                             "padding": "10px",
                             "borderRadius": "5px",
